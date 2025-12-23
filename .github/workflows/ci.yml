@@ -1,0 +1,40 @@
+name: Laravel CI
+
+# Kích hoạt khi có code push lên nhánh main
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest # Chạy trên máy ảo Ubuntu của GitHub
+
+    steps:
+      # 1. Tải code về
+      - uses: actions/checkout@v4
+
+      # 2. Cài đặt PHP 8.2 (Giống Dockerfile của bạn)
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo
+          coverage: none
+
+      # 3. Cài đặt thư viện (Composer)
+      - name: Install Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      # 4. Setup môi trường Laravel (Bắt buộc phải có để chạy được code)
+      - name: Copy .env
+        run: cp .env.example .env
+
+      - name: Generate Key
+        run: php artisan key:generate
+
+      # 5. Chạy Test
+      # Vì testcase của bạn hiện tại không dùng DB, nên ta chạy thẳng luôn
+      - name: Execute tests
+        run: php artisan test

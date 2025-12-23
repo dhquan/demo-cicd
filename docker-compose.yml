@@ -1,0 +1,18 @@
+services:
+  # 1. Container xử lý PHP (Đầu bếp)
+  app:
+    build: .
+    volumes:
+      - .:/var/www  # Map code vào /var/www
+    # Lưu ý: Không cần ports ở đây nữa vì App không giao tiếp trực tiếp với User
+
+  # 2. Container Web Server (Lễ tân)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8000:80" # User vào cổng 8000 ở máy thật -> vào cổng 80 của Nginx
+    volumes:
+      - .:/var/www  # Nginx cũng cần nhìn thấy code để lấy file tĩnh (css/js)
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf # Nạp file cấu hình vào
+    depends_on:
+      - app # Nginx phải đợi App chạy xong mới chạy
