@@ -22,6 +22,7 @@ jobs:
           php-version: '8.2'
           extensions: mbstring, dom, fileinfo
           coverage: none
+          cache: composer
 
       # 3. Cài đặt thư viện (Composer)
       - name: Install Dependencies
