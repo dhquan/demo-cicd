@@ -22,7 +22,18 @@ jobs:
           php-version: '8.2'
           extensions: mbstring, dom, fileinfo
           coverage: none
-          cache: composer
+
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          # Đường dẫn thư mục cần lưu lại
+          path: vendor
+          # Tạo key định danh: Hệ điều hành + PHP + Mã băm của file composer.lock
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          # Nếu không khớp key chính xác, thử tìm các key cũ hơn
+          restore-keys: |
+            ${{ runner.os }}-php-
 
       # 3. Cài đặt thư viện (Composer)
       - name: Install Dependencies
