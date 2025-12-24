@@ -1,0 +1,31 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  # Job 1: Chạy Test trước (Gọi lại quy trình CI)
+  tests:
+    uses: ./.github/workflows/ci.yml # Đảm bảo file CI của bạn tên là ci.yml
+
+  # Job 2: Deploy (Chỉ chạy khi Test ngon)
+  deploy:
+    needs: tests # Bắt buộc phải đợi Test xong mới được chạy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          # Đoạn script này sẽ chạy trên server AWS của bạn
+          script: |
+            cd /home/ubuntu/demo-cicd
+            git pull origin main
+            docker compose up -d --build
+            docker compose exec -T app php artisan migrate --force
+            docker compose exec -T app php artisan optimize:clear
