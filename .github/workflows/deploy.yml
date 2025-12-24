@@ -33,5 +33,3 @@ jobs:
             if ! grep -q "APP_KEY=base64" .env; then
                 docker compose exec -T app php artisan key:generate
             fi
-            docker compose exec -T app php artisan optimize:clear
-            docker compose exec -T app php artisan config:cache
