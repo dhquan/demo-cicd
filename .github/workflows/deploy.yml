@@ -23,37 +23,17 @@ jobs:
           script_stop: true
           script: |
             cd /home/ubuntu/app
-
-#             2. Lấy code mới nhất
             git pull origin main
-
-            # 3. Xử lý file .env (Chỉ copy nếu chưa có)
             if [ ! -f .env ]; then
                 cp .env.example .env
             fi
-
-            # 4. Build và khởi động lại container
             docker compose up -d --build
-
-            # 5. Cài đặt thư viện PHP (QUAN TRỌNG: Sửa lỗi thiếu vendor)
             docker compose exec -T app composer install --no-dev --optimize-autoloader
-
-            # 6. Cấp quyền cho thư mục storage (Để tránh lỗi 500 khi ghi log/ảnh)
             docker compose exec -T app chmod -R 777 storage bootstrap/cache
-
-            # 7. Tạo APP_KEY (Chỉ chạy nếu trong file .env chưa có key)
-            # Lưu ý: Không chạy key:generate mỗi lần deploy vì sẽ làm user bị logout
             if ! grep -q "APP_KEY=base64" .env; then
                 docker compose exec -T app php artisan key:generate
             fi
-
-            # 8. Chạy Migration (Cập nhật Database)
-#            docker compose exec -T app php artisan migrate --force
-
-            # 9. Dọn dẹp và nạp lại Cache (Config, Route, View)
             docker compose exec -T app php artisan optimize:clear
             docker compose exec -T app php artisan config:cache
             docker compose exec -T app php artisan route:cache
             docker compose exec -T app php artisan view:cache
-
-            echo "Deployment finished successfully!"
