@@ -5,16 +5,13 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # Job 1: Chạy Test trước (Gọi lại quy trình CI)
   tests:
-    uses: ./.github/workflows/ci.yml # Đảm bảo file CI của bạn tên là ci.yml
+    uses: ./.github/workflows/ci.yml
     secrets: inherit
 
-  # Job 2: Deploy (Chỉ chạy khi Test ngon)
   deploy:
-    needs: tests # Bắt buộc phải đợi Test xong mới được chạy
+    needs: tests
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -23,10 +20,40 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: 22
-          # Đoạn script này sẽ chạy trên server AWS của bạn
+          script_stop: true
           script: |
-            cd /home/ubuntu/demo-cicd
+            cd /home/ubuntu/app
+
+#             2. Lấy code mới nhất
             git pull origin main
+
+            # 3. Xử lý file .env (Chỉ copy nếu chưa có)
+            if [ ! -f .env ]; then
+                cp .env.example .env
+            fi
+
+            # 4. Build và khởi động lại container
             docker compose up -d --build
-            docker compose exec -T app php artisan migrate --force
+
+            # 5. Cài đặt thư viện PHP (QUAN TRỌNG: Sửa lỗi thiếu vendor)
+            docker compose exec -T app composer install --no-dev --optimize-autoloader
+
+            # 6. Cấp quyền cho thư mục storage (Để tránh lỗi 500 khi ghi log/ảnh)
+            docker compose exec -T app chmod -R 777 storage bootstrap/cache
+
+            # 7. Tạo APP_KEY (Chỉ chạy nếu trong file .env chưa có key)
+            # Lưu ý: Không chạy key:generate mỗi lần deploy vì sẽ làm user bị logout
+            if ! grep -q "APP_KEY=base64" .env; then
+                docker compose exec -T app php artisan key:generate
+            fi
+
+            # 8. Chạy Migration (Cập nhật Database)
+#            docker compose exec -T app php artisan migrate --force
+
+            # 9. Dọn dẹp và nạp lại Cache (Config, Route, View)
             docker compose exec -T app php artisan optimize:clear
+            docker compose exec -T app php artisan config:cache
+            docker compose exec -T app php artisan route:cache
+            docker compose exec -T app php artisan view:cache
+
+            echo "Deployment finished successfully!"
