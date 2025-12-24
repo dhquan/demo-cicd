@@ -8,6 +8,7 @@ jobs:
   # Job 1: Chạy Test trước (Gọi lại quy trình CI)
   tests:
     uses: ./.github/workflows/ci.yml # Đảm bảo file CI của bạn tên là ci.yml
+    secrets: inherit
 
   # Job 2: Deploy (Chỉ chạy khi Test ngon)
   deploy:
