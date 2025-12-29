@@ -1,0 +1,16 @@
+# Bỏ qua thư mục vendor (Container sẽ tự cài bằng lệnh composer install)
+vendor
+vendor/
+
+# Bỏ qua node_modules (Quá nặng, container không cần cái của máy thật)
+node_modules
+node_modules/
+
+# Bỏ qua git
+.git
+.git/
+
+# Bỏ qua các file log, env
+.env
+storage/*.key
+storage/logs/*

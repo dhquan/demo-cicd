@@ -1,18 +1,93 @@
 services:
-  # 1. Container xử lý PHP (Đầu bếp)
+  # 1. Service APP (Laravel PHP-FPM)
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: laravel_app_image
+    container_name: laravel_app
+    restart: unless-stopped
+    working_dir: /var/www
     volumes:
-      - .:/var/www  # Map code vào /var/www
-    # Lưu ý: Không cần ports ở đây nữa vì App không giao tiếp trực tiếp với User
+      - ./:/var/www
+    networks:
+      - app-network
+    ports:
+      - "80:80"        # Cổng Web Nginx
+      - "8080:8080"    # Cổng WebSocket (nếu dùng Reverb)
+      - "5173:5173"
+    depends_on:
+      - db
+      - redis
 
-  # 2. Container Web Server (Lễ tân)
+  # 2. Service NGINX (Web Server)
   nginx:
     image: nginx:alpine
+    container_name: laravel_nginx
+    restart: unless-stopped
     ports:
-      - "80:80" # User vào cổng 8000 ở máy thật -> vào cổng 80 của Nginx
+      - "8000:80"
     volumes:
-      - .:/var/www  # Nginx cũng cần nhìn thấy code để lấy file tĩnh (css/js)
-      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf # Nạp file cấu hình vào
+      - ./:/var/www
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - app-network
     depends_on:
-      - app # Nginx phải đợi App chạy xong mới chạy
+      - app
+
+  # 3. Service DB (MySQL)
+  # Lưu ý: Khi lên Production (AWS), bạn có thể comment service này lại nếu dùng RDS
+  db:
+    image: mysql:8.0
+    container_name: laravel_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # 4. Service REDIS (Cache & Queue)
+  redis:
+    image: redis:alpine
+    container_name: laravel_redis
+    restart: unless-stopped
+    # Dòng command này giúp Redis lưu dữ liệu xuống ổ cứng (bền vững)
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+  echo-server:
+    image: oanhnn/laravel-echo-server:latest # Image đóng gói sẵn Node + Socket.io
+    container_name: app_echo_server
+    restart: unless-stopped
+    ports:
+      - "6001:6001" # Cổng mặc định của Socket.io
+    volumes:
+      - ./laravel-echo-server.json:/app/laravel-echo-server.json # File cấu hình
+    networks:
+      - app-network
+    depends_on:
+      - redis
+
+# --- PHẦN KHAI BÁO MẠNG (NETWORKS) ---
+# Phải nằm sát lề trái, ngang hàng với services
+networks:
+  app-network:
+    driver: bridge
+
+# --- PHẦN KHAI BÁO Ổ CỨNG (VOLUMES) ---
+# Phải nằm sát lề trái, ngang hàng với services
+volumes:
+  db-data:
+  redis-data:

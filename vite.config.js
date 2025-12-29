@@ -10,9 +10,15 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    // --- THÊM CẤU HÌNH SERVER NÀY ---
     server: {
+        host: '0.0.0.0', // Cho phép kết nối từ bên ngoài container
+        port: 5173,      // Cố định cổng
+        hmr: {
+            host: 'localhost', // Bảo trình duyệt Windows: "Hãy tìm Vite ở localhost của mày"
+        },
         watch: {
-            ignored: ['**/storage/framework/views/**'],
+            usePolling: true, // Bắt buộc khi chạy trên Docker (đặc biệt là Windows/WSL) để nhận diện thay đổi file
         },
     },
 });
